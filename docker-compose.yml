@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  proxy:
+    image: haproxy:2.6
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - dspace_network
+    configs:
+      - source: haproxy_cfg
+        target: /usr/local/etc/haproxy/haproxy.cfg
+    secrets:
+      - sslcert.pem
+    deploy:
+      mode: global
+
+  dspace_frontend:
+    image: ghcr.io/cuhk-library-lits/docker-dspace-angular:7.5
+    networks:
+      - dspace_network
+    secrets:
+      - sslcert.pem
+    environment:
+      NODE_EXTRA_CA_CERTS: /run/secrets/sslcert.pem
+      DSPACE_REST_HOST: ${REST_HOST}
+      DSPACE_REST_PORT: 443
+      DSPACE_REST_NAMESPACE: ${REST_NAMESPACE}
+      DSPACE_REST_SSL: 'true'
+      DSPACE_UI_HOST: 0.0.0.0
+      DSPACE_UI_PORT: 4000
+      DSPACE_UI_SSL: 'false'
+      DSPACE_INFO_ENABLEENDUSERAGREEMENT: 'false'
+      DSPACE_INFO_ENABLEPRIVACYSTATEMENT: 'false'
+
+  dspace_backend:
+    image: ghcr.io/cuhk-library-lits/docker-dspace:7.5
+    networks:
+      - dspace_network
+    volumes:
+      - dspace_solr_cfg:/deploy/solr
+    secrets:
+      - dspace_db_password
+      - dspace_smtp_password
+    environment:
+      DSPACE_ADMIN_EMAIL: ${ADMIN_EMAIL}
+      DSPACE_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      DSPACE_ADMIN_FIRSTNAME: ${ADMIN_FIRSTNAME}
+      DSPACE_ADMIN_LASTNAME: ${ADMIN_LASTNAME}
+      DSPACE_CFG_dspace_dir: /dspace
+      DSPACE_CFG_dspace_name: ${DSPACE_NAME}
+      DSPACE_CFG_dspace_server_url: ${DSPACE_SERVER_URL}
+      DSPACE_CFG_dspace_ui_url: ${DSPACE_UI_URL}
+      DSPACE_CFG_default_language: ${DEFAULT_LANGUAGE}
+      DSPACE_CFG_mail_from_address: ${MAIL_FROM_ADDRESS}
+      DSPACE_CFG_mail_server: smtp_noreply
+      DSPACE_CFG_mail_server_username: ${SMTP_USER}
+      DSPACE_CFG_mail_server_password_FILE: /run/secrets/dspace_smtp_password
+      DSPACE_CFG_mail_admin: ${MAIL_ADMIN_ADDRESS}
+      DSPACE_CFG_solr_server: http://dspace_solr:8983/solr
+      DSPACE_CFG_db_url:  jdbc:postgresql://dspace_postgres:5432/dspace
+      DSPACE_CFG_db_driver: org.postgresql.Driver
+      DSPACE_CFG_db_dialect: org.hibernate.dialect.PostgreSQL94Dialect
+      DSPACE_CFG_db_username: dspace
+      DSPACE_CFG_db_password_FILE: /run/secrets/dspace_db_password
+      DSPACE_CFG_db_schema: public
+      DSPACE_CFG_handle_prefix: ${HANDLE_PREFIX}
+      DSPACE_CFG_webui_submit_upload_required: 'false'
+      DSPACE_CFG_authentication__password_domain_valid: ${USER_DOMAIN_VALID}
+      DSPACE_INIT_STUCTURE_FILE: ${INIT_STUCTURE_FILE}
+      DSPACE_ENTITY_MODELS_FILE: ${ENTITY_MODELS_FILE}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/server || exit 1"]  
+      start_period: 30s
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  dspace_postgres:
+    image: postgres:13
+    networks:
+      - dspace_network
+    volumes:
+      - dspace_postgres_data:/var/lib/postgresql/data
+    configs:
+      - source: initdb_sql
+        target: /docker-entrypoint-initdb.d/initdb.sql
+    secrets:
+      - dspace_db_password
+    environment:
+      POSTGRES_DB: dspace
+      POSTGRES_USER: dspace
+      POSTGRES_PASSWORD_FILE: /run/secrets/dspace_db_password
+  
+  dspace_solr:
+    image: solr:8.11.2-slim
+    networks:
+      - dspace_network
+    volumes:
+      - dspace_solr_vol:/var/solr
+      - dspace_solr_cfg:/var/solr/data/configsets
+    healthcheck:
+      test: ["CMD-SHELL", "solr api -get \"http://127.0.0.1:8983/solr/admin/cores?action=STATUS&core=search\" | grep uptime > /dev/null || exit 1"]  
+      start_period: 30s
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  smtp_noreply:
+    image: ghcr.io/cookieqrumbs/docker-postfix-noreply:1.0
+    networks:
+      - dspace_network
+    hostname: ${SMTP_HOST}
+    secrets:
+      - dspace_smtp_password
+    environment:
+      SMTP_USER : ${SMTP_USER}
+      SMTP_PASSWORD_FILE: /run/secrets/dspace_smtp_password
+
+networks:
+  dspace_network:
+    external: true
+
+volumes:
+  dspace_solr_vol:
+  dspace_solr_cfg:
+  dspace_postgres_data:
+
+configs:
+  haproxy_cfg:
+    external: true
+    name: haproxy.cfg
+  initdb_sql:
+    external: true
+    name: initdb.sql
+
+secrets:
+  dspace_db_password:
+    external: true
+    name: dspace_db_password
+  dspace_smtp_password:
+    external: true
+    name: dspace_smtp_password
+  sslcert.pem:
+    external: true
+    name: ${SSL_PEM_SECRET}
