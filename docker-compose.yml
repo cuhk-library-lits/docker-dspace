@@ -68,7 +68,8 @@ services:
       DSPACE_CFG_handle_prefix: ${HANDLE_PREFIX}
       DSPACE_CFG_webui_submit_upload_required: 'false'
       DSPACE_CFG_authentication__password_domain_valid: ${USER_DOMAIN_VALID}
-      DSPACE_INIT_STUCTURE_FILE: ${INIT_STUCTURE_FILE}
+      DSPACE_CFG_google_analytics_key: ${GOOGLE_ANALYTICS_KEY}
+      DSPACE_INIT_STUCTURE_FILE: ${DSPACE_INIT_STUCTURE_FILE}
       DSPACE_ENTITY_MODELS_FILE: ${ENTITY_MODELS_FILE}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/server || exit 1"]  

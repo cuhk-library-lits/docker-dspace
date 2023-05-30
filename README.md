@@ -85,6 +85,7 @@
 | **MAIL_FROM_ADDRESS**          | Email from address                                           |                                                     |
 | **MAIL_ADMIN_ADDRESS**         | Email admin address                                          |                                                     |
 | **USER_DOMAIN_VALID**          | Only allow user from specified domain                        |                                                     |
+| **GOOGLE_ANALYTICS_KEY**       | Enabling Google Analytics by setting the key value           |                                                     |
 | **DSPACE_INIT_STUCTURE_FILE**  | File path for initial community/collection structure in XML  |                                                     |
 | **ENTITY_MODELS_FILE**         | File path for entity model definitions in XML                |                                                     |
 | **SSL_PEM_SECRET**             | The secret containing SSL certificate for HTTPS              |                                                     |
